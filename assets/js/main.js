@@ -462,6 +462,15 @@
       status.className = 'form-status is-visible ' + (ok ? 'is-ok' : 'is-err');
     };
 
+    /* reCAPTCHA v2. `grecaptcha` is defined by Google's script, which is async
+       and can be blocked outright (extensions, corporate filters, GDPR tooling).
+       Every call is therefore guarded — a missing widget must produce a clear
+       message, not a TypeError. */
+    const captchaReady = () =>
+      typeof grecaptcha !== 'undefined' && typeof grecaptcha.getResponse === 'function';
+    const captchaToken = () => (captchaReady() ? grecaptcha.getResponse() : '');
+    const captchaReset = () => { if (captchaReady()) { try { grecaptcha.reset(); } catch (e) {} } };
+
     form.addEventListener('submit', async (e) => {
       e.preventDefault();
 
@@ -469,12 +478,36 @@
       /* Honeypot: real people leave it empty. */
       if (form.elements._gotcha && form.elements._gotcha.value) return;
 
+      if (!captchaReady()) {
+        say(
+          "The spam check couldn't load, so the form can't be sent. Please call us on " +
+            '07815 157055, or try again with any ad or privacy blockers paused.',
+          false
+        );
+        return;
+      }
+
+      const token = captchaToken();
+      if (!token) {
+        say('Please tick the "I\'m not a robot" box before sending.', false);
+        document.querySelector('.g-recaptcha')?.scrollIntoView({ block: 'center' });
+        return;
+      }
+
       if (button) { button.disabled = true; button.textContent = 'Sending…'; }
+
+      /* set(), not append(): the reCAPTCHA widget injects its own hidden
+         <textarea name="g-recaptcha-response"> inside the form, so FormData
+         already holds an empty entry under that name. append() would send two
+         values and the server reads the first — the empty one — failing
+         verification. set() replaces it. */
+      const payload = new FormData(form);
+      payload.set('g-recaptcha-response', token);
 
       try {
         const res = await fetch(form.action, {
           method: 'POST',
-          body: new FormData(form),
+          body: payload,
           headers: { Accept: 'application/json' }
         });
         if (!res.ok) {
@@ -482,6 +515,7 @@
           throw new Error(data.errors?.map((x) => x.message).join(', ') || 'Send failed');
         }
         form.reset();
+        captchaReset();
         say(
           "Thank you — your message has been sent. We'll be in touch shortly to confirm your appointment.",
           true
@@ -491,6 +525,7 @@
           'Sorry, something went wrong sending your message. Please call us on 07815 157055 instead.',
           false
         );
+        captchaReset();
         console.error('[BWC] form error:', err);
       } finally {
         if (button) { button.disabled = false; button.textContent = original; }

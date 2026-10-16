@@ -25,6 +25,11 @@
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap">
 <link rel="stylesheet" href="assets/css/style.css">
 
+<!-- reCAPTCHA v2 for the contact form. Loaded only on this page — it is the
+     only page with a form, and the script sets cookies, so the legal pages
+     should not pull it in. See cookies.html. -->
+<script src="https://www.google.com/recaptcha/api.js" async defer></script>
+
 <script type="application/ld+json">
 {
   "@context": "https://schema.org",
@@ -779,6 +784,10 @@
               <input type="checkbox" name="consent" required>
               <span>I'm happy for the practice to contact me about my enquiry. See our <a href="privacy.html">privacy policy</a>.</span>
             </label>
+
+            <div class="recaptcha-wrap">
+              <div class="g-recaptcha" data-sitekey="6LeSzPEtAAAAABpSuP_nfvxuexu8k2qOkDacptlz"></div>
+            </div>
 
             <button class="btn btn--primary btn--lg btn--block" type="submit">Send message</button>
 
